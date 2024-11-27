@@ -11,3 +11,6 @@ COPY . .
 EXPOSE 3001
 
 CMD ["node", "server.js"]
+
+
+#delete this line its just for a ci test
