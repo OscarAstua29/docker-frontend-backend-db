@@ -1,36 +1,51 @@
 name: Build and push docker image
 
 on:
-    push:
-        branches:
-        - develop
+  push:
+    paths: 
+      - 'backend/**'
 
-    pull_request:
-        branches:
-        - develop
+    branches:
+      - develop
+      - master
+
+  pull_request:
+    paths: 
+      - 'backend/**'
+    branches:
+      - develop
+      - master
 
 jobs:
     build-and-push:
         runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/develop'
 
         steps:
-        # 1. Checkout del código
-        - name: Checkout repository
+
+        - name: Checkout code
           uses: actions/checkout@v3
 
-        # 2. Loguearse en Docker Hub
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v3
+
         - name: Log in to Docker Hub
           uses: docker/login-action@v2
           with:
             username: ${{ secrets.DOCKER_USERNAME }}
             password: ${{ secrets.DOCKER_PASSWORD }}
 
-        # 3. Construir la imagen de Docker
-        - name: Build Docker Image
+        - name: Build and tag Docker image
           run: |
-            docker build -t ${{ secrets.DOCKER_USERNAME }}/my-app:latest .
+            cd backend && VERSION=$(jq -r .version < package.json)
+            docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:v$VERSION
         
-        # 4. Push de la imagen a Docker Hub
-        - name: Push Docker Image
+        - name: Push Docker image
           run: |
-            docker push ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+            cd backend && VERSION=$(jq -r .version < package.json)
+            docker push ${{ secrets.DOCKER_USERNAME }}/backend:v$VERSION
+
+        - name: Pull Docker image
+          run: |
+            cd backend && VERSION=$(jq -r .version < package.json)
+            docker pull ${{ secrets.DOCKER_USERNAME }}/backend:v$VERSION
