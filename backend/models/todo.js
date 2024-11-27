@@ -15,6 +15,6 @@ let Todo = new Schema({
     due_date: {
         type: Date
     }
-});
+);
 
 module.exports = mongoose.model('Todo', Todo);
