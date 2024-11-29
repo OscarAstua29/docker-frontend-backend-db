@@ -34,7 +34,6 @@ jobs:
           run: |
             cd backend
             npm ci
-            npm install globals --save-dev
     
         - name: Run ESLint
           run: |
