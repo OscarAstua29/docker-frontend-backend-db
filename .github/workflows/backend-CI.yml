@@ -22,14 +22,13 @@ jobs:
         if: github.ref == 'refs/heads/develop'
 
         steps:
-
         - name: Checkout code
           uses: actions/checkout@v3
 
         - name: Set up Node.js
           uses: actions/setup-node@v3
           with:
-            node-version: 16 # Ajusta según la versión que uses
+            node-version: 18
     
         - name: Install dependencies
           run: |
@@ -39,7 +38,10 @@ jobs:
         - name: Run ESLint
           run: |
             cd backend
-            npx eslint . --ext .js,.ts
+            npx eslint . 
+
+        - name: Install jq
+          run: sudo apt-get install jq -y   
 
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@v2
