@@ -1,9 +1,9 @@
-import * as globals from 'globals';
-import pluginJs from "@eslint/js";
-import pluginReact from "eslint-plugin-react";
+const globals = require('globals');
+const pluginJs = require('@eslint/js');
+const pluginReact = require('eslint-plugin-react');
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
-export default [
+module.exports = [
   // Configuración básica para todos los archivos
   {
     files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
