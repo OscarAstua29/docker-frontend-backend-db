@@ -1,0 +1,93 @@
+name: Deploy Nginx to AWS
+
+on:
+  push:
+    branches:
+      - "main"
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+  KEY_PAIR_NAME: github-workflow
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+
+      - name: Verify AWS CLI installation
+        run: aws --version
+
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 
+
+
+      - name: Launch EC2 Instance
+        id: create_ec2
+        env:
+          INSTANCE_TYPE: t2.micro
+          AMI_ID: ami-0ebfd941bbafe70c6
+          SECURITY_GROUP: MySecurityGroup
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id $AMI_ID \
+            --count 1 \
+            --instance-type $INSTANCE_TYPE \
+            --key-name $KEY_PAIR_NAME \
+            --security-groups $SECURITY_GROUP \
+            --region $AWS_REGION \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $AWS_REGION
+    
+
+      - name: Get EC2 Public IP
+        id: get_public_ip
+        run: |
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids ${{ env.INSTANCE_ID }} \
+            --region $AWS_REGION \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+          echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+
+
+      - name: Configure EC2 Instance
+        run: | 
+
+            mkdir -p ~/.ssh
+            echo "${{ secrets.AWS_SSH_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "${{ secrets.AWS_SSH_KEY }}" > ~/.ssh/id_rsa
+            # Añadir la IP pública de la instancia EC2 a known_hosts
+            ssh-keyscan -H ${{ env.PUBLIC_IP }} >> ~/.ssh/known_hosts
+  
+            # Conectar por SSH y configurar la instancia EC2
+            ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.PUBLIC_IP }} << 'EOF'
+
+      - name: Copy files to EC2 instance
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa docker-compose.yml instance-config.sh ec2-user@${{ env.PUBLIC_IP }}:/home/ec2-user/
+         
+          
+      - name: Run instance-config.ssh on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.PUBLIC_IP }} "chmod +x /home/ec2-user/instance-config.sh && /home/ec2-user/instance-config.sh"
